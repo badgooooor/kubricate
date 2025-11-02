@@ -12,11 +12,9 @@
 
 ## 📦 Scope
 
-**In Scope**
-- 
+### In Scope
 
-**Out of Scope**
-- 
+### Out of Scope
 
 ## 🧭 High-Level Design
 

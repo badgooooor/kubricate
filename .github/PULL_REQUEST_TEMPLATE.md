@@ -9,13 +9,13 @@ Use draft PRs for WIP. Link issues with keywords: "Closes #123", "Fixes #456".
 - [ ] Type: feat / fix / docs / chore / refactor / perf / test (pick one)
 
 ## What & Why
-**What changed**
+### What changed
 - …
 
-**Why (problem / motivation)**
+### Why (problem / motivation)
 - …
 
-**Linked issues**
+## Linked issues
 - Closes #____
 - Related: #____
 
@@ -32,7 +32,7 @@ Use draft PRs for WIP. Link issues with keywords: "Closes #123", "Fixes #456".
 - [ ] No breaking changes
 - [ ] Yes – describe impact & migration below
 
-**Migration notes**
+## Migration notes
 - …
 
 ## Performance / Security / Compatibility
@@ -45,7 +45,7 @@ Use draft PRs for WIP. Link issues with keywords: "Closes #123", "Fixes #456".
 - [ ] Docs updated (README / website / examples)
 - [ ] Add release note (one clear sentence)
 
-**Release note**
+## Release note
 > …
 
 ## Checklist

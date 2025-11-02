@@ -1,31 +1,31 @@
-# Example: With Basic Auth Secret
+# Example: With Custom Type Secret
 
-This example demonstrates how to use **BasicAuthSecretProvider** to manage `kubernetes.io/basic-auth` secrets in your Kubernetes deployments.
+This example demonstrates how to use **CustomTypeSecretProvider** to manage Kubernetes secrets with custom types in your deployments.
 
 ## 📖 Overview
 
-This example shows three different patterns for using BasicAuthSecretProvider:
+CustomTypeSecretProvider allows you to create Kubernetes secrets with **user-defined types** and **flexible key/value pairs**, unlike built-in types like `kubernetes.io/basic-auth` which have fixed schemas.
 
-1. **Individual key injection** - Inject `username` and `password` as separate environment variables
-2. **Bulk injection with prefix** - Use `envFrom` to inject both credentials with a prefix
-3. **Bulk injection without prefix** - Use `envFrom` to inject credentials directly
+This example shows:
+1. **Custom secret type definition** - Create a secret with type `vendor.com/api-credentials`
+2. **Allowed keys validation** - Restrict which keys can be stored using `allowedKeys`
+3. **Individual key injection** - Inject specific keys as environment variables
+4. **Type-safe secret management** - Validation ensures only permitted keys are used
 
 ## 🏗️ What's Included
 
 ### Stacks
 
-- **namespace** - Default namespace
-- **apiServiceApp** - API service using individual env injection (`env` with `key`)
-- **dbClientApp** - Database client using bulk injection with prefix (`envFrom` with `prefix`)
-- **workerApp** - Background worker using bulk injection without prefix (`envFrom`)
+- **namespace** - Default namespace (`kubricate-with-custom-type-secret`)
+- **vendorIntegrationApp** - Application using vendor API credentials with custom secret type
 
 ### Features Demonstrated
 
-- ✅ `kubernetes.io/basic-auth` Secret type generation
-- ✅ Individual key selection with `inject('env', { key: 'username' })`
-- ✅ Bulk injection with `inject('envFrom', { prefix: 'DB_' })`
-- ✅ Type-safe credential management
-- ✅ Multiple deployment patterns in one example
+- ✅ Custom Kubernetes Secret type (`vendor.com/api-credentials`)
+- ✅ `allowedKeys` validation for type safety
+- ✅ Individual key injection with `.inject('env', { key: '...' })`
+- ✅ Multiple keys from the same custom-type secret
+- ✅ JSON-based secret format
 
 ## 🚀 Quick Start
 
@@ -40,11 +40,8 @@ cp .env.example .env
 Edit `.env` to set your credentials:
 
 ```bash
-# API Credentials
-API_CREDENTIALS={"username":"your-api-user","password":"your-api-password"}
-
-# Database Credentials
-DB_CREDENTIALS={"username":"your-db-user","password":"your-db-password"}
+# Vendor API Configuration (custom type: vendor.com/api-credentials)
+VENDOR_API_CONFIG={"api_key":"YOUR_API_KEY_HERE","api_endpoint":"https://api.vendor.example.com","api_timeout":"30"}
 ```
 
 ### 2. Generate Kubernetes Manifests
@@ -52,7 +49,7 @@ DB_CREDENTIALS={"username":"your-db-user","password":"your-db-password"}
 Run the following command to generate resources:
 
 ```bash
-pnpm --filter=@examples/with-basic-auth-secret kubricate generate
+pnpm --filter=@examples/with-custom-type-secret kubricate generate
 ```
 
 Or from the example directory:
@@ -71,24 +68,26 @@ ls -la output/
 
 You should see:
 - `namespace.yml` - Namespace definition
-- `apiServiceApp.yml` - API service with individual env vars
-- `dbClientApp.yml` - Database client with prefixed env vars
-- `workerApp.yml` - Worker with direct env vars
+- `vendorIntegrationApp.yml` - Application with custom-type secret injection
 
 ## 📋 Generated Resources Explained
 
-### API Service (Individual Key Injection)
+### Vendor Integration App (Custom Type Secret)
 
-The API service uses **individual key injection** to set specific environment variable names:
+The application injects individual keys from a custom-type secret:
 
 ```typescript
-c.secrets('API_CREDENTIALS')
-  .forName('API_USERNAME')
-  .inject('env', { key: 'username' });
+c.secrets('VENDOR_API_CONFIG')
+  .forName('VENDOR_API_KEY')
+  .inject('env', { key: 'api_key' });
 
-c.secrets('API_CREDENTIALS')
-  .forName('API_PASSWORD')
-  .inject('env', { key: 'password' });
+c.secrets('VENDOR_API_CONFIG')
+  .forName('VENDOR_API_ENDPOINT')
+  .inject('env', { key: 'api_endpoint' });
+
+c.secrets('VENDOR_API_CONFIG')
+  .forName('VENDOR_API_TIMEOUT')
+  .inject('env', { key: 'api_timeout' });
 ```
 
 **Generated YAML**:
@@ -96,12 +95,13 @@ c.secrets('API_CREDENTIALS')
 apiVersion: v1
 kind: Secret
 metadata:
-  name: api-credentials
-  namespace: kubricate-with-basic-auth-secret
-type: kubernetes.io/basic-auth
+  name: vendor-api-secret
+  namespace: kubricate-with-custom-type-secret
+type: vendor.com/api-credentials
 data:
-  username: <base64-encoded-username>
-  password: <base64-encoded-password>
+  api_key: <base64-encoded-value>
+  api_endpoint: <base64-encoded-value>
+  api_timeout: <base64-encoded-value>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -109,69 +109,36 @@ spec:
   template:
     spec:
       containers:
-      - name: api-service
+      - name: vendor-integration
         env:
-        - name: API_USERNAME
+        - name: VENDOR_API_KEY
           valueFrom:
             secretKeyRef:
-              name: api-credentials
-              key: username
-        - name: API_PASSWORD
+              name: vendor-api-secret
+              key: api_key
+        - name: VENDOR_API_ENDPOINT
           valueFrom:
             secretKeyRef:
-              name: api-credentials
-              key: password
+              name: vendor-api-secret
+              key: api_endpoint
+        - name: VENDOR_API_TIMEOUT
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-secret
+              key: api_timeout
 ```
-
-### Database Client (Bulk Injection with Prefix)
-
-The database client uses **envFrom with prefix** for bulk injection:
-
-```typescript
-c.secrets('DB_CREDENTIALS').inject('envFrom', { prefix: 'DB_' });
-```
-
-**Generated YAML**:
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-spec:
-  template:
-    spec:
-      containers:
-      - name: db-client
-        envFrom:
-        - prefix: DB_
-          secretRef:
-            name: db-credentials
-```
-
-**Resulting Environment Variables**:
-- `DB_username=<value>`
-- `DB_password=<value>`
-
-### Background Worker (Bulk Injection without Prefix)
-
-The worker uses **envFrom without prefix**:
-
-```typescript
-c.secrets('API_CREDENTIALS').inject('envFrom');
-```
-
-**Resulting Environment Variables**:
-- `username=<value>`
-- `password=<value>`
 
 ## 🔐 Secret Management
 
 ### Format
 
-BasicAuthSecretProvider expects secrets in JSON format with `username` and `password` keys:
+CustomTypeSecretProvider expects secrets in JSON format with flexible key/value pairs:
 
 ```json
 {
-  "username": "your-username",
-  "password": "your-password"
+  "api_key": "your-api-key",
+  "api_endpoint": "https://api.vendor.example.com",
+  "api_timeout": "30"
 }
 ```
 
@@ -182,105 +149,133 @@ In this example, secrets are loaded from `.env` file using `EnvConnector`:
 ```typescript
 export const secretManager = new SecretManager()
   .addConnector('EnvConnector', new EnvConnector())
-  // Provider for API credentials
-  .addProvider('ApiCredentialsProvider', new BasicAuthSecretProvider({
-    name: 'api-credentials',
-    namespace: 'default',
-  }))
-  // Provider for database credentials
-  .addProvider('DbCredentialsProvider', new BasicAuthSecretProvider({
-    name: 'db-credentials',
-    namespace: 'default',
-  }))
+  // Provider for vendor API credentials with custom type
+  .addProvider(
+    'VendorApiProvider',
+    new CustomTypeSecretProvider({
+      name: 'vendor-api-secret',
+      namespace: config.namespace,
+      secretType: 'vendor.com/api-credentials',
+      // Optional: restrict allowed keys for type safety
+      allowedKeys: ['api_key', 'api_endpoint', 'api_timeout'],
+    })
+  )
   .setDefaultConnector('EnvConnector')
-  .setDefaultProvider('ApiCredentialsProvider')
+  .setDefaultProvider('VendorApiProvider')
   .addSecret({
-    name: 'API_CREDENTIALS',
-    provider: 'ApiCredentialsProvider',
-  })
-  .addSecret({
-    name: 'DB_CREDENTIALS',
-    provider: 'DbCredentialsProvider',
+    name: 'VENDOR_API_CONFIG',
+    provider: 'VendorApiProvider',
   });
 ```
 
-### Why Separate Providers?
+### Configuration Options
 
-**Important**: Each `BasicAuthSecretProvider` instance manages a **single Kubernetes Secret resource**. When you need to create multiple secrets with different credentials, you must use separate provider instances.
+**Required**:
+- `name` - Kubernetes Secret resource name
+- `secretType` - Custom secret type (e.g., `vendor.com/api-credentials`)
 
-**❌ Incorrect - Using one provider for multiple secrets**:
+**Optional**:
+- `namespace` - Kubernetes namespace (defaults to `'default'`)
+- `allowedKeys` - Array of permitted keys for validation (enforces type safety)
+
+### The `allowedKeys` Feature
+
+The `allowedKeys` option provides **type safety** by restricting which keys can be stored in the secret:
+
 ```typescript
-// This will cause a conflict!
-.addProvider('BasicAuthSecretProvider', new BasicAuthSecretProvider({
-  name: 'api-credentials',  // Single Secret resource
-}))
-.addSecret({ name: 'API_CREDENTIALS' })  // username + password
-.addSecret({ name: 'DB_CREDENTIALS' })   // username + password (CONFLICT!)
+new CustomTypeSecretProvider({
+  name: 'vendor-api-secret',
+  secretType: 'vendor.com/api-credentials',
+  allowedKeys: ['api_key', 'api_endpoint', 'api_timeout'],
+})
 ```
 
-**Error**: `[conflict:k8s] Conflict detected: key "username" already exists in Secret "api-credentials"`
+**Benefits**:
+- ✅ **Validation** - Attempting to use a key not in `allowedKeys` will fail at build time
+- ✅ **Type Safety** - Prevents typos and enforces schema compliance
+- ✅ **Documentation** - `allowedKeys` serves as self-documentation for the secret schema
 
-**Why it fails**: Both secrets try to write `username` and `password` keys into the same Secret resource (`api-credentials`), causing a key collision.
-
-**✅ Correct - Separate provider for each secret**:
+**Example**:
 ```typescript
-// Each provider creates its own Secret resource
-.addProvider('ApiCredentialsProvider', new BasicAuthSecretProvider({
-  name: 'api-credentials',     // Secret 1
-}))
-.addProvider('DbCredentialsProvider', new BasicAuthSecretProvider({
-  name: 'db-credentials',      // Secret 2
-}))
-.addSecret({ name: 'API_CREDENTIALS', provider: 'ApiCredentialsProvider' })
-.addSecret({ name: 'DB_CREDENTIALS', provider: 'DbCredentialsProvider' })
+// ✅ Allowed - key is in allowedKeys
+.inject('env', { key: 'api_key' })
+
+// ❌ Rejected - key is NOT in allowedKeys
+.inject('env', { key: 'invalid_key' })
+// Error: Key 'invalid_key' is not allowed. Allowed keys: api_key, api_endpoint, api_timeout
 ```
 
-**Result**: Two separate Kubernetes Secrets are created:
-- `api-credentials` with API username/password
-- `db-credentials` with DB username/password
-
-**Key Takeaway**: Unlike `OpaqueSecretProvider` which can merge multiple secrets into one resource, `BasicAuthSecretProvider` has a **fixed schema** (`username` + `password`), so you need one provider instance per secret credential pair.
-
-### Validation
-
-BasicAuthSecretProvider validates that secrets contain both `username` and `password` fields. Invalid secrets will fail at build time with clear error messages.
+If `allowedKeys` is not specified, **any key** can be used (no validation).
 
 ## 🎯 Use Cases
 
-This pattern is useful for:
+CustomTypeSecretProvider is ideal for:
 
-- 🔌 **API Authentication** - HTTP Basic Auth for REST APIs
-- 🗄️ **Database Connections** - MySQL, PostgreSQL basic authentication
-- 🔐 **Service-to-Service Auth** - Internal service authentication
-- 📡 **Proxy Authentication** - HTTP proxy credentials
-- 🌐 **Legacy Systems** - Systems requiring basic authentication
+- 🔌 **Third-Party Integrations** - Vendor APIs with custom authentication schemes
+- 🏢 **Internal Conventions** - Organization-specific secret type naming
+- 🔐 **Flexible Secrets** - Key/value secrets that don't fit standard Kubernetes types
+- 📦 **Custom Operators** - Secrets for custom Kubernetes operators expecting specific types
+- 🌐 **Multi-Field Credentials** - Credentials with more than username/password (API key + endpoint + config)
 
 ## 📚 Key Concepts
 
-### Individual Key Injection (`env`)
+### Custom Secret Types
 
-When you need **granular control** over environment variable names:
+Kubernetes allows custom secret types in the format:
+- **Domain-based**: `vendor.com/api-credentials`, `example.org/database-config`
+- **Custom prefix**: `mycompany/custom-auth`, `internal/service-token`
+
+Custom types are useful when:
+1. Integrating with third-party systems expecting specific secret types
+2. Following organizational naming conventions
+3. Using custom Kubernetes operators that recognize specific types
+4. Documenting secret purpose through the type field
+
+### Individual Key Injection
+
+CustomTypeSecretProvider supports **individual key injection** using the `env` strategy:
 
 ```typescript
-.inject('env', { key: 'username' })  // Select specific key
-.forName('CUSTOM_ENV_NAME')          // Set custom env var name
+c.secrets('VENDOR_API_CONFIG')
+  .forName('CUSTOM_ENV_NAME')  // Environment variable name
+  .inject('env', { key: 'api_key' });  // Key from secret
 ```
 
 **Required**:
 - ✅ Must use `.forName()` to specify environment variable name
-- ✅ Must provide `key` parameter ('username' or 'password')
+- ✅ Must provide `key` parameter matching a key in the secret
 
-### Bulk Injection (`envFrom`)
+**Note**: Unlike `OpaqueSecretProvider`, CustomTypeSecretProvider does **not** support `envFrom` (bulk injection) because custom types typically have specific schemas and selective key usage is preferred.
 
-When you want to **inject all credentials** at once:
+### Multiple Secrets with Same Provider
+
+Unlike `BasicAuthSecretProvider`, CustomTypeSecretProvider can handle **multiple secrets** with different keys in the same provider instance, as long as the keys don't conflict:
 
 ```typescript
-.inject('envFrom')                    // No prefix
-.inject('envFrom', { prefix: 'DB_' }) // With prefix
+.addProvider('VendorApiProvider', new CustomTypeSecretProvider({
+  name: 'vendor-api-secret',
+  secretType: 'vendor.com/api-credentials',
+  allowedKeys: ['api_key', 'api_endpoint', 'api_timeout'],
+}))
+.addSecret({ name: 'VENDOR_API_CONFIG', provider: 'VendorApiProvider' });
 ```
 
-**Optional**:
-- 🔧 `prefix` adds a prefix to all environment variables
+However, if you need to create **multiple Kubernetes Secret resources** with different custom types, use separate provider instances:
+
+```typescript
+.addProvider('VendorApiProvider', new CustomTypeSecretProvider({
+  name: 'vendor-api-secret',
+  secretType: 'vendor.com/api-credentials',
+  allowedKeys: ['api_key', 'api_endpoint'],
+}))
+.addProvider('PaymentProvider', new CustomTypeSecretProvider({
+  name: 'payment-secret',
+  secretType: 'payment.example.com/credentials',
+  allowedKeys: ['merchant_id', 'api_secret'],
+}))
+.addSecret({ name: 'VENDOR_CONFIG', provider: 'VendorApiProvider' })
+.addSecret({ name: 'PAYMENT_CONFIG', provider: 'PaymentProvider' });
+```
 
 ## 🧪 Testing the Example
 
@@ -293,13 +288,18 @@ pnpm kbr generate
 ### 2. Check Generated Secrets
 
 ```bash
-cat output/apiServiceApp.yml | grep -A 5 "kind: Secret"
+cat output/vendorIntegrationApp.yml | grep -A 10 "kind: Secret"
+```
+
+You should see the custom secret type:
+```yaml
+type: vendor.com/api-credentials
 ```
 
 ### 3. Verify Environment Variables
 
 ```bash
-cat output/apiServiceApp.yml | grep -A 10 "env:"
+cat output/vendorIntegrationApp.yml | grep -A 15 "env:"
 ```
 
 ## 🔍 Troubleshooting
@@ -307,126 +307,59 @@ cat output/apiServiceApp.yml | grep -A 10 "env:"
 ### Error: Missing targetName
 
 ```
-Error: [BasicAuthSecretProvider] Missing targetName (.forName) for env injection.
+Error: [CustomTypeSecretProvider] Missing targetName (.forName) for env injection.
 ```
 
 **Solution**: Add `.forName('ENV_VAR_NAME')` before `.inject()`:
 
 ```typescript
-c.secrets('API_CREDENTIALS')
-  .forName('API_USERNAME')  // ← Add this
-  .inject('env', { key: 'username' });
+c.secrets('VENDOR_API_CONFIG')
+  .forName('VENDOR_API_KEY')  // ← Add this
+  .inject('env', { key: 'api_key' });
 ```
 
-### Error: Invalid key
+### Error: Key not allowed
 
 ```
-Error: [BasicAuthSecretProvider] Invalid key 'email'. Must be 'username' or 'password'.
+Error: [CustomTypeSecretProvider] Key 'invalid_key' is not allowed. Allowed keys: api_key, api_endpoint, api_timeout
 ```
 
-**Solution**: Use only `'username'` or `'password'` as key values:
+**Solution**: Only use keys defined in `allowedKeys`:
 
 ```typescript
-.inject('env', { key: 'username' })  // ✅ Correct
-.inject('env', { key: 'email' })     // ❌ Invalid
+// ✅ Correct - key is in allowedKeys
+.inject('env', { key: 'api_key' })
+
+// ❌ Invalid - key not in allowedKeys
+.inject('env', { key: 'invalid_key' })
 ```
 
-### Error: Missing key
+### Error: Missing key parameter
 
 ```
-Error: [BasicAuthSecretProvider] 'key' is required for env injection.
+Error: [CustomTypeSecretProvider] 'key' is required for env injection.
 ```
 
 **Solution**: Provide the `key` parameter:
 
 ```typescript
-.inject('env', { key: 'username' })  // ✅ Correct
+.inject('env', { key: 'api_key' })  // ✅ Correct
 .inject('env')                       // ❌ Missing key
 ```
 
-### Error: Conflict detected
+### Error: Secret type is required
 
 ```
-Error: [conflict:k8s] Conflict detected: key "username" already exists in Secret "api-credentials" in namespace "default"
+Error: [CustomTypeSecretProvider] secretType is required
 ```
 
-**Cause**: Multiple secrets are trying to use the same provider instance, which creates a single Kubernetes Secret resource. Since `kubernetes.io/basic-auth` secrets only have `username` and `password` keys, trying to merge multiple credential pairs into one Secret causes conflicts.
-
-**Solution**: Create separate provider instances for each secret:
+**Solution**: Provide a `secretType` when creating the provider:
 
 ```typescript
-// ❌ Wrong - reusing same provider
-.addProvider('BasicAuthSecretProvider', new BasicAuthSecretProvider({
-  name: 'api-credentials'
-}))
-.addSecret({ name: 'API_CREDENTIALS' })
-.addSecret({ name: 'DB_CREDENTIALS' })  // Conflict!
-
-// ✅ Correct - separate providers
-.addProvider('ApiCredentialsProvider', new BasicAuthSecretProvider({
-  name: 'api-credentials'
-}))
-.addProvider('DbCredentialsProvider', new BasicAuthSecretProvider({
-  name: 'db-credentials'
-}))
-.addSecret({ name: 'API_CREDENTIALS', provider: 'ApiCredentialsProvider' })
-.addSecret({ name: 'DB_CREDENTIALS', provider: 'DbCredentialsProvider' })
-```
-
-See the [Why Separate Providers?](#why-separate-providers) section for more details.
-
-### Error: Mixed injection strategies
-
-```
-Error: [BasicAuthSecretProvider] Mixed injection strategies are not allowed.
-Expected all injections to use 'env' but found: env, envFrom.
-```
-
-**Cause**: Attempting to use both `env` and `envFrom` strategies with the same provider and custom `targetPath` that causes them to be grouped together.
-
-**Solution**: Don't mix strategies. Use either `env` OR `envFrom`, not both:
-
-```typescript
-// ❌ Wrong - mixing strategies
-c.secrets('CREDS')
-  .forName('USER')
-  .inject('env', { key: 'username', targetPath: 'custom.path' });
-c.secrets('CREDS')
-  .inject('envFrom', { prefix: 'DB_', targetPath: 'custom.path' });
-
-// ✅ Correct - use only one strategy
-c.secrets('CREDS')
-  .forName('USER')
-  .inject('env', { key: 'username' });
-c.secrets('CREDS')
-  .forName('PASS')
-  .inject('env', { key: 'password' });
-```
-
-### Error: Multiple envFrom prefixes detected
-
-```
-Error: [BasicAuthSecretProvider] Multiple envFrom prefixes detected: API_, DB_.
-All envFrom injections for the same secret must use the same prefix.
-```
-
-**Cause**: Trying to use different prefixes for envFrom injections to the same provider instance.
-
-**Why this happens**: Each provider instance represents **one** Kubernetes Secret. That secret can only be injected with **one** prefix value.
-
-**Solution**: Use separate provider instances for different secrets:
-
-```typescript
-// ❌ Wrong - different prefixes for same provider
-.addProvider('BasicAuthProvider', new BasicAuthSecretProvider({ name: 'shared-creds' }))
-c.secrets('API_CREDS').inject('envFrom', { prefix: 'API_' });
-c.secrets('DB_CREDS').inject('envFrom', { prefix: 'DB_' });
-
-// ✅ Correct - separate providers for different secrets
-.addProvider('ApiProvider', new BasicAuthSecretProvider({ name: 'api-creds' }))
-.addProvider('DbProvider', new BasicAuthSecretProvider({ name: 'db-creds' }))
-c.secrets('API_CREDS', { provider: 'ApiProvider' }).inject('envFrom', { prefix: 'API_' });
-c.secrets('DB_CREDS', { provider: 'DbProvider' }).inject('envFrom', { prefix: 'DB_' });
+new CustomTypeSecretProvider({
+  name: 'vendor-api-secret',
+  secretType: 'vendor.com/api-credentials',  // ← Required
+})
 ```
 
 ## 📖 Documentation
@@ -435,16 +368,18 @@ For more information about secret management in Kubricate:
 
 - [Official Documentation](https://kubricate.thaitype.dev)
 - [Secret Management Guide](../../docs/secrets.md)
-- [BasicAuthSecretProvider API](../../packages/plugin-kubernetes/README.md)
+- [CustomTypeSecretProvider API](../../packages/plugin-kubernetes/README.md)
 
 ## 🤝 Related Examples
 
 - [with-secret-manager](../with-secret-manager) - General secret management example
+- [with-basic-auth-secret](../with-basic-auth-secret) - BasicAuthSecretProvider example
 - [with-stack-template](../with-stack-template) - Basic stack creation
 
 ## 📝 Notes
 
-- BasicAuthSecretProvider is part of `@kubricate/plugin-kubernetes` package
-- Secrets are base64-encoded automatically
-- The Secret type `kubernetes.io/basic-auth` is a Kubernetes built-in type
-- This provider enforces Kubernetes spec compliance (username + password only)
+- CustomTypeSecretProvider is part of `@kubricate/plugin-kubernetes` package
+- Secrets are base64-encoded automatically by Kubernetes
+- Custom secret types follow the format `domain/type-name`
+- The `allowedKeys` feature is optional but highly recommended for type safety
+- Unlike built-in types, custom types can have any number of keys
