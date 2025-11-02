@@ -1,5 +1,17 @@
 # @kubricate/stacks
 
+## 0.22.0
+
+### Minor Changes
+
+- 765020b: introduces type-safe secret management, new specialized providers (TLS, SSH, CustomType), and a breaking change removing the default EnvConnector prefix — delivering stronger security, cleaner extensibility, and a more consistent developer experience.
+
+### Patch Changes
+
+- Updated dependencies [765020b]
+  - @kubricate/core@0.22.0
+  - @kubricate/kubernetes-models@0.1.2
+
 ## 0.21.0
 
 ### Minor Changes
