@@ -9,7 +9,6 @@ import { maskingValue } from './utilts.js';
 export interface EnvConnectorConfig {
   /**
    * The prefix to use for environment variables.
-   * @default `KUBRICATE_SECRET_`
    */
   prefix?: string;
 
@@ -50,7 +49,7 @@ export class EnvConnector implements BaseConnector<EnvConnectorConfig> {
 
   constructor(config?: EnvConnectorConfig) {
     this.config = config ?? {};
-    this.prefix = config?.prefix ?? 'KUBRICATE_SECRET_';
+    this.prefix = config?.prefix ?? '';
     this.caseInsensitive = config?.caseInsensitive ?? false;
     this.workingDir = config?.workingDir;
   }
