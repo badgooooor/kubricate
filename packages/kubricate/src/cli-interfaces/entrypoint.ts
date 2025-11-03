@@ -1,6 +1,7 @@
+import path from 'node:path';
+
 import c from 'ansis';
 import yargs from 'yargs';
-import path from 'node:path';
 import { hideBin } from 'yargs/helpers';
 
 import type { LogLevel } from '@kubricate/core';
