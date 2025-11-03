@@ -1,5 +1,6 @@
 import c from 'ansis';
 import yargs from 'yargs';
+import path from 'node:path';
 import { hideBin } from 'yargs/helpers';
 
 import type { LogLevel } from '@kubricate/core';
@@ -53,6 +54,7 @@ export function cliEntryPoint(argv: string[], options: CliEntryPointOptions): Pr
       .option('verbose', { type: 'boolean', describe: 'Enable verbose output' })
       .option('silent', { type: 'boolean', describe: 'Suppress all output' })
       .option('dry-run', { type: 'boolean', describe: 'Dry run mode (Not Stable Yet)' })
+      .global(['root', 'config', 'verbose', 'silent', 'dry-run'])
       .middleware(argv => {
         let level: LogLevel = 'info';
         if (argv.silent) level = 'silent';
@@ -60,6 +62,7 @@ export function cliEntryPoint(argv: string[], options: CliEntryPointOptions): Pr
 
         argv.logger = new ConsoleLogger(level);
         argv.version = options.version;
+        argv.root = argv.root ? path.resolve(argv.root) : process.cwd();
       })
       .command(generateCommand)
       .command(secretCommand)
