@@ -286,7 +286,7 @@ metadata:
 "
 `;
 
-exports[`CLI Integration (non-root directory) > should generate expected files > generate-output-non-root-dir/example/output/frontend/Deployment_deployment.yml 1`] = `
+exports[`CLI Integration (non-root directory) > should generate expected files when run from different cwd > generate-output-non-root-dir/example/output/frontend/Deployment_deployment.yml 1`] = `
 "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -318,7 +318,7 @@ spec:
 "
 `;
 
-exports[`CLI Integration (non-root directory) > should generate expected files > generate-output-non-root-dir/example/output/frontend/Service_service.yml 1`] = `
+exports[`CLI Integration (non-root directory) > should generate expected files when run from different cwd > generate-output-non-root-dir/example/output/frontend/Service_service.yml 1`] = `
 "apiVersion: v1
 kind: Service
 metadata:
@@ -342,7 +342,7 @@ spec:
 "
 `;
 
-exports[`CLI Integration (non-root directory) > should generate expected files > generate-output-non-root-dir/example/output/namespace/Namespace_namespace.yml 1`] = `
+exports[`CLI Integration (non-root directory) > should generate expected files when run from different cwd > generate-output-non-root-dir/example/output/namespace/Namespace_namespace.yml 1`] = `
 "apiVersion: v1
 kind: Namespace
 metadata:

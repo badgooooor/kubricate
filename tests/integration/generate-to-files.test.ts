@@ -64,9 +64,15 @@ describe('CLI Integration (non-root directory)', () => {
     await rimraf(outputFixtureDir);
   });
 
-  it('should generate expected files', async () => {
-    const args = ['generate', '--root', fixturesDir];
-    const { stdout, exitCode } = await executeKubricate(args, { reject: false });
+  it('should generate expected files when run from different cwd', async () => {
+    // Run from a DIFFERENT directory than where the config exists
+    const differentCwd = path.join(fixturesRoot, fixture); // Parent directory
+    const args = ['generate', '--root', './example']; // Relative path to trigger bug
+    
+    const { stdout, exitCode } = await executeKubricate(args, { 
+      reject: false,
+      cwd: differentCwd  // This is the key change!
+    });
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('Generating stacks');
