@@ -65,13 +65,12 @@ describe('CLI Integration (non-root directory)', () => {
   });
 
   it('should generate expected files when run from different cwd', async () => {
-    // Run from a DIFFERENT directory than where the config exists
-    const differentCwd = path.join(fixturesRoot, fixture); // Parent directory
-    const args = ['generate', '--root', './example']; // Relative path to trigger bug
+    const differentCwd = path.join(fixturesRoot, fixture);
+    const args = ['generate', '--root', './example'];
     
     const { stdout, exitCode } = await executeKubricate(args, { 
       reject: false,
-      cwd: differentCwd  // This is the key change!
+      cwd: differentCwd 
     });
 
     expect(exitCode).toBe(0);
@@ -79,4 +78,16 @@ describe('CLI Integration (non-root directory)', () => {
 
     await snapshotDirectory(outputFixtureDir, `${fixture}/example/${outputDir}`);
   });
+
+  it('should generate expected files when --root is not provided (default to cwd)', async () => {
+    const { stdout, exitCode } = await executeKubricate(['generate'], {
+      reject: false,
+      cwd: fixturesDir
+    })
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('Generating stacks');
+
+    await snapshotDirectory(outputFixtureDir, `${fixture}/example/${outputDir}`);
+  })
 });
